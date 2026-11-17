@@ -4,13 +4,14 @@
 
 	export let placeholder: string = '搜索视频..';
 	export let value: string = '';
+	export let widthClass: string = 'max-w-48';
 	export let onSearch: ((query: string) => void) | undefined = undefined;
 	function handleSearch() {
 		onSearch?.(value);
 	}
 </script>
 
-<div class="flex w-full max-w-48 items-center">
+<div class="flex w-full items-center {widthClass}">
 	<div class="relative w-full">
 		<SearchIcon class="text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
 		<Input.Root

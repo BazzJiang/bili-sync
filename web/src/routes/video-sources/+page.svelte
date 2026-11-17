@@ -6,7 +6,6 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import CircleCheckBigIcon from '@lucide/svelte/icons/circle-check-big';
@@ -376,152 +375,168 @@
 						{/if}
 					</div>
 					{#if sources.length > 0}
-						<div class="overflow-x-auto">
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head class="w-[20%]">名称</Table.Head>
-										<Table.Head class="w-[30%]">下载路径</Table.Head>
-										<Table.Head class="w-[15%]">最新视频时间</Table.Head>
-										<Table.Head class="w-[15%]">过滤规则</Table.Head>
-										<Table.Head class="w-[10%]">启用状态</Table.Head>
-										<Table.Head class="w-[10%] text-right">操作</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each sources as source, index (index)}
-										<Table.Row>
-											<Table.Cell class="font-medium">{source.name}</Table.Cell>
-											<Table.Cell>
-												<div
-													class="bg-secondary hover:bg-secondary/80 flex w-fit cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+						<div class="overflow-hidden rounded-lg border">
+							<!-- 表头只在桌面端显示，与列表行共用同一套网格列宽 -->
+							<div
+								class="text-muted-foreground bg-muted/40 hidden items-center gap-3 border-b px-4 py-2 text-xs font-medium md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_9rem_6.5rem_10rem_10rem]"
+							>
+								<div>名称</div>
+								<div>下载路径</div>
+								<div>最新视频时间</div>
+								<div>过滤规则</div>
+								<div>启用</div>
+								<div class="text-right">操作</div>
+							</div>
+							<div class="divide-y">
+								{#each sources as source, index (index)}
+									<div
+										class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_9rem_6.5rem_10rem_10rem] md:gap-3"
+									>
+										<!-- 名称：类型图标 + 名称，移动端独占一行 -->
+										<div class="col-span-2 min-w-0 md:col-span-1">
+											<div class="flex min-w-0 items-center gap-2">
+												<svelte:component
+													this={config.icon}
+													class="text-muted-foreground h-4 w-4 shrink-0"
+												/>
+												<span
+													class="truncate text-sm leading-relaxed font-medium"
+													title={source.name}
 												>
-													<FolderIcon class="text-foreground/70 h-3.5 w-3.5 shrink-0" />
-													<span
-														class="text-foreground/70 font-mono text-xs font-medium select-text"
-													>
-														{source.path || '未设置'}
-													</span>
-												</div>
-											</Table.Cell>
-											<Table.Cell>
+													{source.name}
+												</span>
+											</div>
+										</div>
+										<!-- 下载路径 -->
+										<div class="col-span-2 min-w-0 md:col-span-1">
+											<div
+												class="bg-secondary hover:bg-secondary/80 flex w-fit max-w-full cursor-text items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+												title={source.path || '未设置'}
+											>
+												<FolderIcon class="text-foreground/70 h-3.5 w-3.5 shrink-0" />
+												<span
+													class="text-foreground/70 min-w-0 truncate font-mono text-xs font-medium select-text"
+												>
+													{source.path || '未设置'}
+												</span>
+											</div>
+										</div>
+										<!-- 最新视频时间 -->
+										<div class="min-w-0">
+											<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
 												{#if source.latestRowAt}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														{new Date(source.latestRowAt).toLocaleString('zh-CN')}
-													</Badge>
+													{new Date(source.latestRowAt).toLocaleString('zh-CN')}
 												{:else}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														-
-													</Badge>
+													-
 												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												{#if source.rule && source.rule.length > 0}
-													<Tooltip.Root disableHoverableContent={true}>
-														<Tooltip.Trigger>
-															<Badge
-																variant="secondary"
-																class="flex w-fit cursor-help items-center gap-1.5"
-															>
-																{source.rule.length} 条规则
-															</Badge>
-														</Tooltip.Trigger>
-														<Tooltip.Content>
-															<p class="text-xs">{source.ruleDisplay}</p>
-														</Tooltip.Content>
-													</Tooltip.Root>
-												{:else}
-													<Badge variant="secondary" class="flex w-fit items-center gap-1.5">
-														-
-													</Badge>
-												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												{#if source.enabled}
-													<Badge
-														class="flex w-fit items-center gap-1.5 bg-emerald-700 text-emerald-100"
+											</Badge>
+										</div>
+										<!-- 过滤规则 -->
+										<div class="min-w-0 justify-self-end md:justify-self-start">
+											{#if source.rule && source.rule.length > 0}
+												<Tooltip.Root disableHoverableContent={true}>
+													<Tooltip.Trigger>
+														<Badge
+															variant="secondary"
+															class="flex w-fit cursor-help items-center gap-1.5"
+														>
+															{source.rule.length} 条规则
+														</Badge>
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p class="text-xs">{source.ruleDisplay}</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
+											{:else}
+												<Badge variant="secondary" class="flex w-fit items-center gap-1.5">-</Badge>
+											{/if}
+										</div>
+										<!-- 启用状态 -->
+										<div class="min-w-0 md:justify-self-start">
+											{#if source.enabled}
+												<Badge
+													class="flex w-fit items-center gap-1.5 bg-emerald-700 text-emerald-100"
+												>
+													<CircleCheckBigIcon class="h-3 w-3" />
+													已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
+															? '（动态 API）'
+															: ''}{/if}
+												</Badge>
+											{:else}
+												<Badge class="flex w-fit items-center gap-1.5 bg-rose-700 text-rose-100">
+													<CircleXIcon class="h-3 w-3" />
+													已禁用
+												</Badge>
+											{/if}
+										</div>
+										<!-- 操作 -->
+										<div class="flex items-center justify-end justify-self-end gap-2">
+											<Tooltip.Root disableHoverableContent={true}>
+												<Tooltip.Trigger>
+													<Button
+														size="sm"
+														variant="outline"
+														onclick={() => openEditDialog(key, source, index)}
+														class="h-8 w-8 p-0"
 													>
-														<CircleCheckBigIcon class="h-3 w-3" />
-														已启用{#if key === 'submissions' && source.useDynamicApi !== null}{source.useDynamicApi
-																? '（动态 API）'
-																: ''}{/if}
-													</Badge>
-												{:else}
-													<Badge class="flex w-fit items-center gap-1.5 bg-rose-700 text-rose-100 ">
-														<CircleXIcon class="h-3 w-3" />
-														已禁用
-													</Badge>
-												{/if}
-											</Table.Cell>
-
-											<Table.Cell class="text-right">
+														<SquarePenIcon class="h-3 w-3" />
+													</Button>
+												</Tooltip.Trigger>
+												<Tooltip.Content>
+													<p class="text-xs">编辑</p>
+												</Tooltip.Content>
+											</Tooltip.Root>
+											<Tooltip.Root disableHoverableContent={true}>
+												<Tooltip.Trigger>
+													<Button
+														size="sm"
+														variant="outline"
+														onclick={() => openEvaluateRules(key, source)}
+														class="h-8 w-8 p-0"
+													>
+														<ListRestartIcon class="h-3 w-3" />
+													</Button>
+												</Tooltip.Trigger>
+												<Tooltip.Content>
+													<p class="text-xs">重新评估规则</p>
+												</Tooltip.Content>
+											</Tooltip.Root>
+											<Tooltip.Root disableHoverableContent={true}>
+												<Tooltip.Trigger>
+													<Button
+														size="sm"
+														variant="outline"
+														onclick={() => openFullSyncDialog(key, source)}
+														class="h-8 w-8 p-0"
+													>
+														<RefreshCwIcon class="h-3 w-3" />
+													</Button>
+												</Tooltip.Trigger>
+												<Tooltip.Content>
+													<p class="text-xs">全量更新视频</p>
+												</Tooltip.Content>
+											</Tooltip.Root>
+											{#if activeTab !== 'watch_later'}
 												<Tooltip.Root disableHoverableContent={true}>
 													<Tooltip.Trigger>
 														<Button
 															size="sm"
 															variant="outline"
-															onclick={() => openEditDialog(key, source, index)}
+															onclick={() => openRemoveDialog(key, source, index)}
 															class="h-8 w-8 p-0"
 														>
-															<SquarePenIcon class="h-3 w-3" />
+															<Trash2Icon class="h-3 w-3" />
 														</Button>
 													</Tooltip.Trigger>
 													<Tooltip.Content>
-														<p class="text-xs">编辑</p>
+														<p class="text-xs">删除</p>
 													</Tooltip.Content>
 												</Tooltip.Root>
-												<Tooltip.Root disableHoverableContent={true}>
-													<Tooltip.Trigger>
-														<Button
-															size="sm"
-															variant="outline"
-															onclick={() => openEvaluateRules(key, source)}
-															class="h-8 w-8 p-0"
-														>
-															<ListRestartIcon class="h-3 w-3" />
-														</Button>
-													</Tooltip.Trigger>
-													<Tooltip.Content>
-														<p class="text-xs">重新评估规则</p>
-													</Tooltip.Content>
-												</Tooltip.Root>
-												<Tooltip.Root disableHoverableContent={true}>
-													<Tooltip.Trigger>
-														<Button
-															size="sm"
-															variant="outline"
-															onclick={() => openFullSyncDialog(key, source)}
-															class="h-8 w-8 p-0"
-														>
-															<RefreshCwIcon class="h-3 w-3" />
-														</Button>
-													</Tooltip.Trigger>
-													<Tooltip.Content>
-														<p class="text-xs">全量更新视频</p>
-													</Tooltip.Content>
-												</Tooltip.Root>
-												{#if activeTab !== 'watch_later'}
-													<Tooltip.Root disableHoverableContent={true}>
-														<Tooltip.Trigger>
-															<Button
-																size="sm"
-																variant="outline"
-																onclick={() => openRemoveDialog(key, source, index)}
-																class="h-8 w-8 p-0"
-															>
-																<Trash2Icon class="h-3 w-3" />
-															</Button>
-														</Tooltip.Trigger>
-														<Tooltip.Content>
-															<p class="text-xs">删除</p>
-														</Tooltip.Content>
-													</Tooltip.Root>
-												{/if}
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
 						</div>
 					{:else}
 						<div class="flex flex-col items-center justify-center py-12">

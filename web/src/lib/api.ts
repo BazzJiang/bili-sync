@@ -1,3 +1,4 @@
+import { authStatus } from './stores/auth';
 import type {
 	ApiError,
 	ApiResponse,
@@ -112,6 +113,9 @@ class ApiClient {
 			const response = await fetch(fullUrl, config);
 
 			if (!response.ok) {
+				if (response.status === 401) {
+					authStatus.set('unauthorized');
+				}
 				const errorText = await response.text();
 				let errorMessage: string;
 				try {
@@ -126,6 +130,7 @@ class ApiClient {
 				} as ApiError;
 			}
 
+			authStatus.set('ok');
 			return await response.json();
 		} catch (error) {
 			if (error && typeof error === 'object' && 'status' in error) {

@@ -15,12 +15,17 @@
 		open = $bindable(false),
 		hasFilters = false,
 		loading = false,
+		titleOverride = '',
+		descriptionOverride = '',
 		filterDescriptionParts = [],
 		onsubmit
 	}: {
 		open?: boolean;
 		hasFilters?: boolean;
 		loading?: boolean;
+		// 批量勾选场景下用自定义标题/说明，避免出现「全部/筛选」字样引起误解
+		titleOverride?: string;
+		descriptionOverride?: string;
 		filterDescriptionParts?: string[];
 		onsubmit: (request: UpdateFilteredVideoStatusRequest) => void;
 	} = $props();
@@ -135,10 +140,14 @@
 <Sheet bind:open>
 	<SheetContent side="right" class="flex w-full flex-col sm:max-w-3xl">
 		<SheetHeader class="px-6 pb-2">
-			<SheetTitle class="text-lg">{hasFilters ? '编辑筛选视频' : '编辑全部视频'}</SheetTitle>
+			<SheetTitle class="text-lg"
+				>{titleOverride || (hasFilters ? '编辑筛选视频' : '编辑全部视频')}</SheetTitle
+			>
 			<SheetDescription class="text-muted-foreground space-y-2 text-sm"
 				>批量编辑视频和分页的下载状态。可将任意子任务状态修改为“未开始”或“已完成”。<br />
-				{#if hasFilters}
+				{#if descriptionOverride}
+					{descriptionOverride}
+				{:else if hasFilters}
 					正在编辑<strong>符合以下筛选条件</strong>的视频的下载状态：
 					<div class="bg-muted my-2 rounded-md p-2 text-left">
 						{#each filterDescriptionParts as part, index (index)}

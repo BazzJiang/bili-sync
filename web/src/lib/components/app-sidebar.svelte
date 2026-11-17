@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActivityIcon from '@lucide/svelte/icons/activity';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import ChartPieIcon from '@lucide/svelte/icons/chart-pie';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
@@ -8,8 +9,10 @@
 	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import { page } from '$app/stores';
 	import { mode, toggleMode } from 'mode-watcher';
 	import type { ComponentProps } from 'svelte';
 
@@ -34,6 +37,11 @@
 						href: '/'
 					},
 					{
+						title: '活动',
+						icon: ActivityIcon,
+						href: '/activity'
+					},
+					{
 						title: '日志',
 						icon: SquareTerminalIcon,
 						href: '/logs'
@@ -47,6 +55,11 @@
 						title: '视频',
 						icon: FilePlayIcon,
 						href: '/videos'
+					},
+					{
+						title: '失败视频',
+						icon: TriangleAlertIcon,
+						href: '/wanted'
 					},
 					{
 						title: '视频源',
@@ -90,6 +103,15 @@
 			sidebar.setOpenMobile(false);
 		}
 	};
+
+	// 高亮当前路由，详情页等子路径也归到所属一级菜单
+	function isActive(href: string): boolean {
+		const path = $page.url.pathname;
+		if (href === '/') return path === '/';
+		// 视频详情 /video/[id] 归属「视频」
+		if (href === '/videos') return path === '/videos' || path.startsWith('/video/');
+		return path === href || path.startsWith(`${href}/`);
+	}
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
@@ -121,7 +143,7 @@
 				<Sidebar.Menu>
 					{#each group.items as item (item.title)}
 						<Sidebar.MenuItem>
-							<Sidebar.MenuButton class="h-8">
+							<Sidebar.MenuButton class="h-8" isActive={isActive(item.href)}>
 								{#snippet child({ props })}
 									<a href={item.href} {...props} onclick={closeMobileSidebar}>
 										<item.icon class="size-4" />
@@ -156,7 +178,7 @@
 			</Sidebar.MenuItem>
 			{#each data.footer as item (item.title)}
 				<Sidebar.MenuItem>
-					<Sidebar.MenuButton class="h-8">
+					<Sidebar.MenuButton class="h-8" isActive={isActive(item.href)}>
 						{#snippet child({ props })}
 							<a href={item.href} {...props} onclick={closeMobileSidebar}>
 								<item.icon class="size-4" />

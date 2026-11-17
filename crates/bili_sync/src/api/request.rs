@@ -53,6 +53,9 @@ pub struct ResetFilteredVideoStatusRequest {
     pub validation_filter: Option<ValidationFilter>,
     pub created_from: Option<NaiveDateTime>,
     pub created_to: Option<NaiveDateTime>,
+    /// 前端列表批量操作时直接指定视频 id，与上面的筛选条件互斥使用
+    #[serde(default)]
+    pub ids: Option<Vec<i32>>,
     #[serde(default)]
     pub force: bool,
 }
@@ -93,6 +96,9 @@ pub struct UpdateFilteredVideoStatusRequest {
     pub validation_filter: Option<ValidationFilter>,
     pub created_from: Option<NaiveDateTime>,
     pub created_to: Option<NaiveDateTime>,
+    /// 前端列表批量操作时直接指定视频 id，与上面的筛选条件互斥使用
+    #[serde(default)]
+    pub ids: Option<Vec<i32>>,
     #[serde(default)]
     #[validate(nested)]
     pub video_updates: Vec<StatusUpdate>,

@@ -25,11 +25,13 @@
 	import MemoryStickIcon from '@lucide/svelte/icons/memory-stick';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import UserIcon from '@lucide/svelte/icons/user';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import VideoIcon from '@lucide/svelte/icons/video';
 
 	let dashboardData = $state<DashBoardResponse | null>(null);
 	let sysInfo = $state<SysInfo | null>(null);
 	let taskStatus = $state<TaskStatus | null>(null);
+	let videoStats = $state<{ total: number; failed: number; waiting: number } | null>(null);
 	let loading = $state(false);
 	let triggering = $state(false);
 	let memoryHistory = $state<Array<{ time: number; used: number; process: number }>>([]);
@@ -70,6 +72,25 @@
 			});
 		} finally {
 			loading = false;
+		}
+	}
+
+	// 指标卡只关心数量，page_size=1 即可拿到 total_count，避免拉全量数据
+	async function loadVideoStats() {
+		try {
+			const [all, failed, waiting] = await Promise.all([
+				api.getVideos({ page: 0, page_size: 1 }),
+				api.getVideos({ page: 0, page_size: 1, status_filter: 'failed' }),
+				api.getVideos({ page: 0, page_size: 1, status_filter: 'waiting' })
+			]);
+			videoStats = {
+				total: all.data.total_count,
+				failed: failed.data.total_count,
+				waiting: waiting.data.total_count
+			};
+		} catch (error) {
+			// 指标卡属于锦上添花，失败时不打扰用户
+			console.error('加载视频统计失败：', error);
 		}
 	}
 
@@ -142,6 +163,10 @@
 		sysInfo ? ((sysInfo.total_disk - sysInfo.available_disk) / sysInfo.total_disk) * 100 : 0
 	);
 
+	const sevenDayCount = $derived(
+		dashboardData ? dashboardData.videos_by_day.reduce((sum, item) => sum + item.cnt, 0) : 0
+	);
+
 	onMount(() => {
 		setBreadcrumb([{ label: '仪表盘' }]);
 
@@ -153,6 +178,7 @@
 			taskStatus = data;
 		});
 		loadDashboard();
+		loadVideoStats();
 		return () => {
 			if (unsubscribeSysInfo) {
 				unsubscribeSysInfo();
@@ -176,6 +202,62 @@
 			<div class="text-muted-foreground">加载中...</div>
 		</div>
 	{:else}
+		<!-- 关键指标：把最需要关注的信息放在首屏 -->
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<a href="/videos" class="block">
+				<Card class="h-full transition-colors hover:bg-muted/40">
+					<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-1">
+						<CardTitle class="text-sm font-medium">视频总数</CardTitle>
+						<VideoIcon class="text-muted-foreground h-4 w-4" />
+					</CardHeader>
+					<CardContent>
+						<div class="text-2xl font-bold">{videoStats?.total ?? '--'}</div>
+						<p class="text-muted-foreground mt-1 text-xs">已入库的全部视频</p>
+					</CardContent>
+				</Card>
+			</a>
+			<a href="/wanted" class="block">
+				<Card class="h-full transition-colors hover:bg-muted/40">
+					<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-1">
+						<CardTitle class="text-sm font-medium">失败视频</CardTitle>
+						<TriangleAlertIcon class="text-muted-foreground h-4 w-4" />
+					</CardHeader>
+					<CardContent>
+						<div
+							class="text-2xl font-bold {videoStats && videoStats.failed > 0
+								? 'text-rose-600'
+								: ''}"
+						>
+							{videoStats?.failed ?? '--'}
+						</div>
+						<p class="text-muted-foreground mt-1 text-xs">点此进入失败视频页批量重置</p>
+					</CardContent>
+				</Card>
+			</a>
+			<a href="/videos?status_filter=waiting" class="block">
+				<Card class="h-full transition-colors hover:bg-muted/40">
+					<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-1">
+						<CardTitle class="text-sm font-medium">等待中</CardTitle>
+						<ClockIcon class="text-muted-foreground h-4 w-4" />
+					</CardHeader>
+					<CardContent>
+						<div class="text-2xl font-bold">{videoStats?.waiting ?? '--'}</div>
+						<p class="text-muted-foreground mt-1 text-xs">排队等待下载的视频</p>
+					</CardContent>
+				</Card>
+			</a>
+			<Card class="h-full">
+				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-1">
+					<CardTitle class="text-sm font-medium">近七日新增</CardTitle>
+					<CalendarIcon class="text-muted-foreground h-4 w-4" />
+				</CardHeader>
+				<CardContent>
+					<div class="text-2xl font-bold">{sevenDayCount}</div>
+					<p class="text-muted-foreground mt-1 text-xs">最近 7 天入库的新视频</p>
+				</CardContent>
+			</Card>
+		</div>
+
 		<div class="grid gap-4 md:grid-cols-3">
 			<Card class="md:col-span-1">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -128,6 +128,7 @@ export interface UpdateFilteredVideoStatusRequest {
 	validation_filter?: 'skipped' | 'invalid' | 'normal';
 	created_from?: string;
 	created_to?: string;
+	ids?: number[];
 	video_updates?: StatusUpdate[];
 	page_updates?: StatusUpdate[];
 }
@@ -146,6 +147,7 @@ export interface ResetFilteredVideoStatusRequest {
 	validation_filter?: 'skipped' | 'invalid' | 'normal';
 	created_from?: string;
 	created_to?: string;
+	ids?: number[];
 	force: boolean;
 }
 

@@ -5,7 +5,6 @@ export type ValidationFilterValue = 'skipped' | 'invalid' | 'normal' | null;
 
 export interface AppState {
 	query: string;
-	currentPage: number;
 	videoSource: {
 		type: string;
 		id: string;
@@ -18,7 +17,6 @@ export interface AppState {
 
 export const appStateStore = writable<AppState>({
 	query: '',
-	currentPage: 0,
 	videoSource: null,
 	statusFilter: null,
 	validationFilter: 'normal',
@@ -27,19 +25,8 @@ export const appStateStore = writable<AppState>({
 });
 
 export const ToQuery = (state: AppState): string => {
-	const {
-		query,
-		videoSource,
-		currentPage,
-		statusFilter,
-		validationFilter,
-		createdFrom,
-		createdTo
-	} = state;
+	const { query, videoSource, statusFilter, validationFilter, createdFrom, createdTo } = state;
 	const params = new URLSearchParams();
-	if (currentPage > 0) {
-		params.set('page', String(currentPage));
-	}
 	if (query.trim()) {
 		params.set('query', query);
 	}
@@ -130,13 +117,6 @@ export const setQuery = (query: string) => {
 	}));
 };
 
-export const setCurrentPage = (page: number) => {
-	appStateStore.update((state) => ({
-		...state,
-		currentPage: page
-	}));
-};
-
 export const setStatusFilter = (statusFilter: StatusFilterValue | null) => {
 	appStateStore.update((state) => ({
 		...state,
@@ -159,16 +139,8 @@ export const setCreatedTimeFilter = (createdFrom: string | null, createdTo: stri
 	}));
 };
 
-export const resetCurrentPage = () => {
-	appStateStore.update((state) => ({
-		...state,
-		currentPage: 0
-	}));
-};
-
 export const setAll = (
 	query: string,
-	currentPage: number,
 	videoSource: { type: string; id: string } | null,
 	statusFilter: StatusFilterValue | null,
 	validationFilter: ValidationFilterValue | null = 'normal',
@@ -177,7 +149,6 @@ export const setAll = (
 ) => {
 	appStateStore.set({
 		query,
-		currentPage,
 		videoSource,
 		statusFilter,
 		validationFilter,

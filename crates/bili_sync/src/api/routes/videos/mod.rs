@@ -264,6 +264,10 @@ pub async fn reset_filtered_video_status(
         query = query.filter(validation_filter.to_video_query());
     }
     query = apply_created_at_filter(query, request.created_from, request.created_to);
+    // 批量操作：前端列表里勾选的视频 id 优先于筛选条件生效
+    if let Some(ids) = request.ids.as_ref().filter(|ids| !ids.is_empty()) {
+        query = query.filter(video::Column::Id.is_in(ids.iter().copied()));
+    }
     let all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
@@ -404,6 +408,10 @@ pub async fn update_filtered_video_status(
         query = query.filter(validation_filter.to_video_query());
     }
     query = apply_created_at_filter(query, request.created_from, request.created_to);
+    // 批量操作：前端列表里勾选的视频 id 优先于筛选条件生效
+    if let Some(ids) = request.ids.as_ref().filter(|ids| !ids.is_empty()) {
+        query = query.filter(video::Column::Id.is_in(ids.iter().copied()));
+    }
     let mut all_videos = query.into_partial_model::<SimpleVideoInfo>().all(&db).await?;
     let mut all_pages = page::Entity::find()
         .filter(page::Column::VideoId.is_in(all_videos.iter().map(|v| v.id)))
