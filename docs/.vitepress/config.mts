@@ -66,6 +66,7 @@ export default defineConfig({
 				items: [
 					{ text: "常见问题", link: "/question" },
 					{ text: "管理页", link: "/frontend" },
+					{ text: "从源码构建", link: "/build" },
 				],
 			}
 		],
