@@ -67,34 +67,97 @@ curl -s -H "Authorization: <auth_token>" http://127.0.0.1:12345/api/config
 
 首次运行会在日志中打印 `auth_token`，该信息只打印一次。
 
-## 常见问题
+## 增量构建
 
-### git 依赖拉取失败
-
-`rust-embed-for-web` 来自 GitHub 的 tag，网络受限时会卡在 `Updating git repository`。可配置镜像转发，并让 cargo 使用 git 命令行：
+首次构建完成后，`target/` 与 `CARGO_HOME` 中的依赖都会保留，后续只需重新编译受影响的部分。
 
 ```bash
-git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+# 后端代码改动：只重编译改动的 crate
+cargo build --release
+
+# 只做类型检查，不产出二进制，速度更快
+cargo check
+
+# 前端改动：必须先重建前端，再重新嵌入
+cd web && bun run build && cd ..
+cargo build --release
+
+# 依赖没有变化时可以完全断网构建
+cargo build --release --offline
 ```
 
-```toml
-# ~/.cargo/config.toml
-[net]
-git-fetch-with-cli = true
-```
+关键行为：
 
-### crates.io 下载过慢
+- `build.rs` 声明了 `cargo::rerun-if-changed=../../web/build`，因此**只有 `web/build` 变化才会触发后端重新链接**；仅修改 `web/src` 不会，必须先执行 `bun run build`。
+- 依赖未变化时，增量构建通常在数秒到数十秒内完成；改动 `Cargo.toml` 会触发相关依赖重新编译。
+- 产物路径固定为 `target/release/bili-sync-rs`，构建完成后直接覆盖即可。
+- 除非依赖损坏，**不要执行 `cargo clean`**，它会清空全部编译缓存。
 
-默认源在部分网络下速度极低，可替换为镜像源：
+## 镜像与加速（本机已固化）
 
-```toml
-# ~/.cargo/config.toml
+仓库内的 `.cargo/config.toml` 已配置好 crates.io 镜像与拉取方式，**对任何 agent、任何 `CARGO_HOME` 都生效**，无需再手动传环境变量：
+
+| 配置 | 作用 |
+| --- | --- |
+| `[source.crates-io]` → `rsproxy-sparse` | crates.io 改走 `rsproxy.cn`，实测约 8.9 MB/s，远快于官方源 |
+| `[net] git-fetch-with-cli = true` | git 依赖交给 git 命令行处理，便于使用镜像改写 |
+| `[http] timeout = 120` | 慢速网络下避免过早超时 |
+
+> [!NOTE]
+> 镜像偶尔会出现 `SSL connection timeout`，cargo 会自动重试；若持续失败，可临时改用 `https://mirrors.ustc.edu.cn/crates.io-index/`（实测约 1.7 MB/s）。
+
+该文件被 `.gitignore` 忽略，不会进入版本库；换机器或全新 clone 后按需重建：
+
+```bash
+mkdir -p .cargo && cat > .cargo/config.toml <<'EOF'
 [source.crates-io]
 replace-with = "rsproxy-sparse"
 
 [source.rsproxy-sparse]
 registry = "sparse+https://rsproxy.cn/index/"
+
+[net]
+git-fetch-with-cli = true
+
+[http]
+timeout = 120
+multiplexing = false
+EOF
 ```
+
+唯一的 git 依赖 `rust-embed-for-web` 通过全局 git 配置镜像：cargo 的 git 命令在 `CARGO_HOME` 下执行，读不到仓库级 git 配置。
+
+```bash
+git config --global url."https://ghfast.top/https://github.com/amtoaer/rust-embed-for-web".insteadOf \
+  "https://github.com/amtoaer/rust-embed-for-web"
+```
+
+> [!NOTE]
+> 这条改写只针对上述依赖地址，不影响其它 GitHub 仓库的 fetch / push。若无法写入 `~/.gitconfig`，可临时用 `GIT_CONFIG_GLOBAL=/path/to/gitconfig` 指定配置文件。
+
+## 给自动化 agent 的检查清单
+
+1. 用 `command -v cargo bun` 确认工具链存在，**不要重复安装**已有环境。
+2. 执行 `cargo build --release` 前先确认 `web/build/index.html` 存在；不存在则执行 `cd web && bun install --frozen-lockfile && bun run build`。
+3. 若 `~/.cargo` 不可写（沙箱环境），设置 `CARGO_HOME=/tmp/bili-sync-cargo` 即可，仓库内的 `.cargo/config.toml` 会自动生效。
+4. 构建完成后用 `./target/release/bili-sync-rs --version` 校验产物。
+5. 增量构建不要执行 `cargo clean`；仅修改前端时必须重建 `web/build`。
+6. 网络异常时先确认上一节的镜像配置是否仍在，而不是直接重试整轮下载。
+
+## 常见问题
+
+### git 依赖拉取失败
+
+`rust-embed-for-web` 来自 GitHub 的 tag，网络受限时会卡在 `Updating git repository`。本机已按上文「镜像与加速」固化；在别的机器上重现时，请使用**只针对该依赖**的改写，不要全局替换 `https://github.com/`（会影响其它仓库的 push）：
+
+```bash
+git config --global url."https://ghfast.top/https://github.com/amtoaer/rust-embed-for-web".insteadOf \
+  "https://github.com/amtoaer/rust-embed-for-web"
+```
+
+### crates.io 下载过慢
+
+已在仓库 `.cargo/config.toml` 中切换到 `rsproxy.cn` 镜像（见上文）。若该文件缺失，按上文片段重建即可。
 
 ### 无法写入 `~/.cargo`
 

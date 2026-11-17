@@ -5,3 +5,9 @@ debug*
 node_modules
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# 本机构建加速配置（见 docs/build.md）
+/.cargo/config.toml
+
+# macOS
+.DS_Store
