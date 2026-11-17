@@ -1,0 +1,31 @@
+[package]
+name = "bili-sync-tray"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "bili-sync 桌面托盘外壳：常驻托盘 + 管理页入口 + 服务生命周期管理"
+license = "MIT"
+publish = false
+
+# 独立 workspace：不与仓库根 workspace 合并，避免托盘依赖（objc2 / ksni / winit）
+# 进入 NAS 侧的 musl 发布构建。构建时请在 desktop-tray/ 目录下执行 cargo。
+[workspace]
+
+[dependencies]
+# ksni：Linux 用纯 Rust 的 StatusNotifierItem(DBus) 后端，不依赖 GTK/libappindicator
+tray-icon = { version = "0.26", default-features = false, features = ["ksni"] }
+# 托盘库只提供事件通道，事件循环由我们自己跑（macOS 必须在主线程）
+winit = "0.30"
+open = "5"
+dirs = "6"
+# 单实例锁：跨平台 flock 语义，进程崩溃时由内核自动释放
+fslock = "0.2"
+
+[target.'cfg(unix)'.dependencies]
+# 停止子进程时需要发 SIGTERM（bili-sync 已实现优雅退出）
+libc = "0.2"
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

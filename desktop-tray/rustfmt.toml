@@ -1,0 +1,3 @@
+# 独立 workspace 自带格式化配置：不继承仓库根的 unstable 选项（group_imports /
+# imports_granularity 需要 nightly），保证 stable 与 nightly 下 `cargo fmt --check` 一致。
+max_width = 120
