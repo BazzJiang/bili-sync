@@ -40,6 +40,9 @@ impl Logger {
 
     /// 写一行日志。写失败不抛错：日志本身不应该影响托盘存活。
     pub fn write(&self, tag: &str, message: &str) {
+        // 子进程的 tracing 输出带 ANSI 颜色控制符（管道下也照样输出），
+        // 直接落盘会让日志里满是 `[2m`、`[32m` 这类噪声，这里统一剥掉。
+        let message = strip_ansi(message);
         let line = format!("[{}] [{tag}] {message}\n", utc_timestamp());
         if let Ok(mut file) = self.inner.lock() {
             let _ = file.write_all(line.as_bytes());
@@ -84,9 +87,58 @@ impl Logger {
     }
 }
 
+/// 去掉 ANSI 转义序列（CSI / OSC / 其它两字节转义）。
+fn strip_ansi(input: &str) -> String {
+    if !input.contains('\u{1b}') {
+        return input.to_string();
+    }
+    let bytes = input.as_bytes();
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == 0x1b {
+            i += 1;
+            if i >= bytes.len() {
+                break;
+            }
+            match bytes[i] {
+                b'[' => {
+                    // CSI：参数/中间字节之后跟一个 0x40-0x7E 的终止字节
+                    i += 1;
+                    while i < bytes.len() && !(0x40..=0x7e).contains(&bytes[i]) {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+                b']' => {
+                    // OSC：BEL 或 ST(ESC \) 结尾
+                    i += 1;
+                    while i < bytes.len() {
+                        if bytes[i] == 0x07 {
+                            i += 1;
+                            break;
+                        }
+                        if bytes[i] == 0x1b && i + 1 < bytes.len() && bytes[i + 1] == b'\\' {
+                            i += 2;
+                            break;
+                        }
+                        i += 1;
+                    }
+                }
+                _ => i += 1,
+            }
+        } else {
+            let ch = input[i..].chars().next().expect("valid utf-8 boundary");
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Logger;
+    use super::{Logger, strip_ansi};
     use std::io::Write;
 
     #[test]
@@ -137,6 +189,14 @@ mod tests {
         let content = std::fs::read_to_string(logger.path()).expect("read log");
         assert!(content.contains("hello-from-child"), "{content}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn strips_ansi_escapes() {
+        let colored = "\u{1b}[2mNov 18 06:12:07\u{1b}[0m \u{1b}[32m INFO\u{1b}[0m 开始执行本轮视频下载任务..";
+        assert_eq!(strip_ansi(colored), "Nov 18 06:12:07  INFO 开始执行本轮视频下载任务..");
+        assert_eq!(strip_ansi("纯文本 without escapes"), "纯文本 without escapes");
+        assert_eq!(strip_ansi("\u{1b}]0;标题\u{7}content"), "content");
     }
 
     #[test]
