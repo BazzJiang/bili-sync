@@ -294,6 +294,26 @@ curl -s --compressed -H "Authorization: <日志中的 auth_token>" \
 | 启动报 `ffmpeg 不存在或无法执行` | Windows 侧未安装 ffmpeg 或不在 PATH | 见上文；也可用 `--ffmpeg-path` 指定路径 |
 | 若产物依赖 `libgcc_s_seh-1.dll` / `libwinpthread-1.dll`（本次未出现） | MinGW 运行时被动态链接 | 加 `-C target-feature=+crt-static` 重新构建，或随包分发这两个 DLL |
 
+### 桌面托盘壳（desktop-tray）
+
+托盘壳是独立 workspace，需要和主程序**分别**交叉编译；它运行时会查找同目录的 `bili-sync-rs.exe` 作为 sidecar：
+
+```bash
+cd ~/bili-sync/desktop-tray
+export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+export CARGO_BUILD_JOBS=2
+cargo build --release --locked --target x86_64-pc-windows-gnu
+# 产物：target/x86_64-pc-windows-gnu/release/bili-sync-tray.exe（PE32+ GUI，约 720 KB）
+
+# 打包：把主程序 exe 放到同一目录即可
+cp ../target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe \
+   target/x86_64-pc-windows-gnu/release/
+```
+
+注意：release 版是 Windows 子系统、没有控制台，`--check`/`--version` 的输出需要重定向才能看到
+（或构建 debug 版 `cargo build --target x86_64-pc-windows-gnu`，它带控制台）。
+
 ### 与官方 CI 的差异
 
 - 官方 release 的 Windows 产物使用 `x86_64-pc-windows-msvc`（GitHub 的 `windows-latest` runner）；本节方式使用 `x86_64-pc-windows-gnu`（MinGW）。两者功能一致，gnu 产物本次实测只依赖 Windows 系统 DLL，可直接拷贝运行。
