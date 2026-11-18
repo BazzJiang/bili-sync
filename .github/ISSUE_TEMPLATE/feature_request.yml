@@ -1,0 +1,58 @@
+name: ✨ 功能建议
+description: 提出新需求或对现有功能提出改进建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢建议！提交前请先确认这个需求不在[功能与路线图](https://github.com/BazzJiang/bili-sync#功能与路线图)中，并搜索[已有 Issue](https://github.com/BazzJiang/bili-sync/issues?q=is%3Aissue) 避免重复。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景 / 你遇到的问题
+      description: 在什么场景下产生了这个需求？现在哪里让你觉得别扭？
+      placeholder: 例如：我在 NAS 上同时维护多个媒体库，希望视频源能按目标目录分组管理……
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的方案
+      description: 你希望它如何工作？界面、配置或命令行长什么样？
+      placeholder: 例如：在「视频源」页增加一个按目录过滤的选项……
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: 相关模块
+      options:
+        - 管理页（WebUI）
+        - 桌面托盘（desktop-tray）
+        - 下载与同步逻辑
+        - 配置与认证
+        - 构建与发布
+        - 文档
+        - 其他
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 备选方案
+      description: 你考虑过的其它做法，或上游已有的相似能力
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我搜索过已有 Issue，未发现重复
+          required: true

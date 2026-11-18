@@ -1,0 +1,95 @@
+name: 🐛 Bug 反馈
+description: 报告一个可复现的问题，帮助我们把工具做得更稳
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！提交前请先：
+
+        - 阅读[文档](https://github.com/BazzJiang/bili-sync/tree/main/docs)，尤其是[常见问题](https://github.com/BazzJiang/bili-sync/blob/main/docs/question.md)；
+        - 搜索[已有 Issue](https://github.com/BazzJiang/bili-sync/issues?q=is%3Aissue)，避免重复。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述
+      description: 发生了什么？你期望的行为是什么？
+      placeholder: 例如：添加收藏夹订阅后，视频一直停留在「等待中」，日志里反复出现……
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 尽量给出最小、可重复的操作步骤
+      placeholder: |
+        1. 在设置页配置 xxx
+        2. 添加视频源 xxx
+        3. 点击「立即执行」
+        4. 观察到 xxx
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: 部署方式
+      options:
+        - Docker / Docker Compose
+        - 预编译二进制
+        - 源码构建
+        - 桌面托盘（desktop-tray）
+        - 其他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行平台
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - NAS / 其他
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 程序版本
+      description: 请粘贴 `bili-sync-rs --version` 的完整输出
+      placeholder: "例如：Bili-Sync v2.11.1（Architecture: linux-x86_64）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 粘贴关键日志即可，请先删除 auth_token、Cookie、私人路径等敏感信息
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 截图、FFmpeg 版本、是否使用反向代理等
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我已阅读文档，并搜索过已有 Issue
+          required: true
+        - label: 我已删除日志中的敏感信息（auth_token、Cookie 等）
+          required: true

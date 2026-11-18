@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 先看文档
+    url: https://github.com/BazzJiang/bili-sync/tree/main/docs
+    about: 部署、配置、构建与常见问题的中文文档，多数问题在这里就能解决
+  - name: 🔍 搜索已有 Issue
+    url: https://github.com/BazzJiang/bili-sync/issues?q=is%3Aissue
+    about: 提交前请先搜索，避免重复提问
