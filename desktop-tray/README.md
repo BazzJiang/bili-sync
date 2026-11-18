@@ -18,7 +18,7 @@ bili-sync 的桌面托盘外壳：**不是**新的服务端，只是给已有的
 | 平台 | 托盘后端 | 运行依赖 | 状态 |
 | --- | --- | --- | --- |
 | macOS 11+ | NSStatusBar（template 图标，自动适配明暗） | 无 | 已验证（本文档的 E2E 测试在 macOS arm64 上跑通） |
-| Windows 10/11 | Shell_NotifyIcon | 无（不需要 WebView2，不是 Tauri） | 代码层面已适配，需 CI/实机回归 |
+| Windows 10/11 | Shell_NotifyIcon | 无（不需要 WebView2，不是 Tauri） | 已验证交叉编译（WSL2 + MinGW），产物为 PE32+ GUI |
 | Linux（X11 / Wayland 桌面） | StatusNotifierItem（DBus，**纯 Rust 的 ksni 后端**） | 能提供 SNI host 的桌面环境 + D-Bus session | 代码层面已适配，需 CI/实机回归 |
 
 Linux 说明：
@@ -42,6 +42,25 @@ cargo build --release
 ```bash
 export CARGO_HOME=/tmp/bili-sync-cargo
 ```
+
+### 交叉编译 Windows exe（WSL2 + MinGW）
+
+需要 `x86_64-pc-windows-gnu` 目标与 MinGW-w64 的 gcc（Ubuntu：`gcc-mingw-w64-x86-64`）：
+
+```bash
+cd desktop-tray
+rustup target add x86_64-pc-windows-gnu
+export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+export CARGO_BUILD_JOBS=2   # WSL 默认内存偏小，压低并发避免 OOM
+cargo build --release --locked --target x86_64-pc-windows-gnu
+# 产物：target/x86_64-pc-windows-gnu/release/bili-sync-tray.exe
+```
+
+- 同时需要一份同目录的 `bili-sync-rs.exe`（按仓库 [`docs/build.md`](../docs/build.md) 的 Windows 交叉编译章节构建），
+  托盘启动时会自动在同目录查找；
+- release 构建是 Windows 子系统（**没有控制台窗口**，双击只出托盘图标）；排查问题可构建带控制台的 debug 版：
+  `cargo build --target x86_64-pc-windows-gnu`；
+- 实测产物只依赖 Windows 系统 DLL（kernel32/user32/shell32/comctl32/ws2_32 等），无需附带 MinGW 运行时。
 
 ## 使用
 

@@ -248,10 +248,17 @@ impl App {
         let builder = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
             .with_tooltip("bili-sync");
-        // macOS 的菜单栏图标要用 template，系统才会按明暗主题自动反色
+        // macOS 的菜单栏图标要用 template，系统才会按明暗主题自动反色。
+        // `with_icon_templated` 只有 macOS 后端提供，其它平台必须用普通图标。
+        #[cfg(target_os = "macos")]
         let builder = if is_template {
             builder.with_icon_templated(icon)
         } else {
+            builder.with_icon(icon)
+        };
+        #[cfg(not(target_os = "macos"))]
+        let builder = {
+            let _ = is_template;
             builder.with_icon(icon)
         };
         let tray = builder.build().map_err(|e| format!("创建托盘图标失败：{e}"))?;

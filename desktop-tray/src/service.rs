@@ -10,11 +10,14 @@ use std::env;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
 
 use crate::{http, log::Logger};
 
-/// 等子进程优雅退出的上限；超过就强杀。
+#[cfg(unix)]
+use std::time::{Duration, Instant};
+
+/// 等子进程优雅退出的上限；超过就强杀。Windows 没有 SIGTERM，用不到这个常量。
+#[cfg(unix)]
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
