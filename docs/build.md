@@ -178,7 +178,126 @@ export CARGO_HOME=/tmp/bili-sync-cargo
 ## 交叉编译与容器
 
 - **Linux 静态包**：`rustup target add x86_64-unknown-linux-musl`，并准备 musl 交叉工具链，再执行 `cargo build --target x86_64-unknown-linux-musl --release`。
+- **Windows exe**：在 Linux（WSL2）上用 MinGW 交叉编译，步骤见下一节。
 - **Docker**：`Dockerfile` 需要已构建好的 `bili-sync-rs-Linux-*.tar.gz`，不是从源码直接构建的捷径，请使用 `just build-docker`。
+
+## Windows 交叉编译（WSL2 实测）
+
+不需要 Windows SDK 或 MSVC 环境，在 Linux（WSL2 Ubuntu）上装好 MinGW 就能直接产出可双击运行的 exe。以下为一次真实构建的完整命令，可直接照抄。
+
+### 构建机环境
+
+| 项目 | 值 |
+| --- | --- |
+| 主机 | WSL2 内的 Ubuntu 26.04 LTS（x86_64），Windows 宿主机 |
+| 硬件 | 2 核 / 3.8 GB 内存 / 1 TB 磁盘（内存偏小，见下文 swap） |
+| 访问方式 | SSH 2222 端口，普通用户（有 sudo 权限）；凭据向维护者索取，**不要写入仓库** |
+| 源码位置 | `/home/<user>/bili-sync`（含从开发机同步来的 `web/build` 与 `.cargo/config.toml`） |
+| 工具链 | rustc / cargo 1.98.0、Bun 1.4.4、gcc 15.2、MinGW-w64 gcc 13 |
+| 依赖规模 | Cargo.lock 507 个包、前端 288 个包 |
+| 产物 | `bili-sync-rs.exe`，约 17 MB，PE32+ x86-64 |
+
+### 安装依赖（全部走国内镜像）
+
+```bash
+# 1. apt 换阿里云（Ubuntu 26.04 使用 deb822 格式；先备份原文件）
+sudo cp -a /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources.bak
+sudo sed -i 's|http://archive.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g; s|http://security.ubuntu.com/ubuntu/|https://mirrors.aliyun.com/ubuntu/|g' \
+  /etc/apt/sources.list.d/ubuntu.sources
+sudo apt-get update
+
+# 2. 基础工具链 + MinGW 交叉编译器（约 1 GB）
+sudo apt-get install -y --no-install-recommends \
+  build-essential pkg-config gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+
+# 3. Rust 1.98.0 + Windows 目标（rsproxy 镜像）
+export RUSTUP_DIST_SERVER=https://rsproxy.cn RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup
+curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh -s -- -y --profile minimal --default-toolchain 1.98.0
+rustup target add x86_64-pc-windows-gnu x86_64-pc-windows-msvc --toolchain 1.98.0
+
+# 4. Bun：用 npmmirror 的平台包，不需要 Node/npm
+curl -fsSL https://registry.npmmirror.com/@oven/bun-linux-x64/-/bun-linux-x64-1.4.4.tgz -o /tmp/bun.tgz
+mkdir -p ~/.bun/tmp && tar xzf /tmp/bun.tgz -C ~/.bun/tmp
+install -m 755 "$(find ~/.bun/tmp -name bun -type f | head -1)" ~/.bun/bin/bun
+export PATH="$HOME/.bun/bin:$PATH"
+
+# 5. 其余镜像：crates 用仓库内 .cargo/config.toml（rsproxy），git 依赖走 ghfast，前端用 npm 镜像
+git config --global url."https://ghfast.top/https://github.com/amtoaer/rust-embed-for-web".insteadOf \
+  "https://github.com/amtoaer/rust-embed-for-web"
+echo 'registry=https://registry.npmmirror.com' >> ~/.npmrc
+```
+
+> [!NOTE]
+> WSL 默认只有约 4 GB 内存，安装 MinGW（近 1 GB 的包）或链接 507 个 crate 时容易 OOM（实测会把 sshd 一起杀掉，导致 SSH 断连）。建议先加 swap：
+>
+> ```bash
+> sudo fallocate -l 4G /swapfile2 && sudo chmod 600 /swapfile2 && \
+>   sudo mkswap /swapfile2 && sudo swapon /swapfile2
+> ```
+>
+> WSL 重启后 swap 不会自动恢复，重新构建前需再执行一次。
+
+### 构建
+
+```bash
+cd ~/bili-sync
+
+# 1. 前端（必须先做，产物 web/build 会被嵌入二进制）
+cd web && bun install --frozen-lockfile && bun run build && cd ..
+
+# 2. 交叉编译 Windows exe
+export PATH="$HOME/.cargo/bin:$HOME/.bun/bin:$PATH"
+export CARGO_BUILD_JOBS=2                                    # 2 核，压低内存峰值
+export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+time cargo build --release --locked --target x86_64-pc-windows-gnu
+
+# 3. 检查产物：应为 PE32+ executable for MS Windows
+file target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe
+# 应只出现 Windows 系统 DLL（kernel32 / ntdll / msvcrt / bcrypt / crypt32 / ws2_32 等）
+x86_64-w64-mingw32-objdump -p target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe | grep -i "DLL Name"
+```
+
+首次交叉编译在 2 核机器上约 7 分钟（依赖已由 `cargo fetch` 预取时）；依赖下载另约 1 分钟（rsproxy 镜像）。
+
+### 验证
+
+```bash
+# 产物信息（WSL 内可直接运行 Windows exe，走 WSL interop）
+./target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe --version
+# Bili-Sync v2.11.1-22-g0fdaa8c
+# Architecture: windows-x86_64
+
+# 用 Windows 侧临时配置目录启动，再做冒烟测试
+./target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe -c 'C:\Users\<user>\bili-sync-test'
+curl -s --compressed -o /dev/null -w '%{http_code}\n' http://127.0.0.1:12345/    # 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:12345/api/config       # 401
+curl -s --compressed -H "Authorization: <日志中的 auth_token>" \
+  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:12345/api/config             # 200
+```
+
+> [!IMPORTANT]
+> Windows 上运行需要 **ffmpeg 在 PATH 中**，否则启动即报 `初始化失败：ffmpeg 不存在或无法执行`。
+> 常规做法是 `winget install Gyan.FFmpeg`；若 Windows 侧连不上 winget 源（`0x80072efd`），
+> 可在 WSL 内下载 npmmirror 的 `@ffmpeg-installer/win32-x64` 包，把其中的 `ffmpeg.exe` 放进
+> `%LOCALAPPDATA%\Microsoft\WindowsApps\`（该目录已在用户 PATH 中，放进去即生效）。
+> 也可以在启动时用 `--ffmpeg-path <路径>` 显式指定 ffmpeg。
+
+### 踩坑记录
+
+| 现象 | 原因 | 解决 |
+| --- | --- | --- |
+| `apt-get update` 超过 5 分钟无进展 | 默认 `archive.ubuntu.com` 在国内很慢 | 换阿里云源（实测 Release 文件 1.4 MB/s） |
+| 安装依赖时 SSH 断开：`kex_exchange_identification: Connection reset` 或 banner 超时 | WSL 内存不足触发 OOM，sshd 被杀 | 先加 4 GB swap；安装/编译用 `nohup` 后台执行，SSH 断连不影响任务 |
+| bun 官方安装脚本卡在下载 | 脚本从 GitHub Releases 拉二进制 | 改用 npmmirror 的 `@oven/bun-linux-x64` 平台包，解压出二进制即可 |
+| `cargo build` 卡在 `Updating git repository` | `rust-embed-for-web` 是 GitHub git 依赖 | 只针对该仓库配置 ghfast 的 `insteadOf`（见上文），不要全局替换 GitHub |
+| Windows 上 `winget` 报 `InternetOpenUrl() failed 0x80072efd` | Windows 侧网络连不上 winget 源 | 在 WSL 内下载，再复制到 Windows 目录并放进 PATH |
+| 启动报 `ffmpeg 不存在或无法执行` | Windows 侧未安装 ffmpeg 或不在 PATH | 见上文；也可用 `--ffmpeg-path` 指定路径 |
+| 若产物依赖 `libgcc_s_seh-1.dll` / `libwinpthread-1.dll`（本次未出现） | MinGW 运行时被动态链接 | 加 `-C target-feature=+crt-static` 重新构建，或随包分发这两个 DLL |
+
+### 与官方 CI 的差异
+
+- 官方 release 的 Windows 产物使用 `x86_64-pc-windows-msvc`（GitHub 的 `windows-latest` runner）；本节方式使用 `x86_64-pc-windows-gnu`（MinGW）。两者功能一致，gnu 产物本次实测只依赖 Windows 系统 DLL，可直接拷贝运行。
+- 若需要与官方完全一致的 MSVC ABI，可在 Linux 上使用 `cargo-xwin`（需额外安装 clang/lld 并下载 Windows SDK/CRT，本仓库尚未实测）。
 
 ## 参考：一次真实构建记录
 

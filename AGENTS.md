@@ -29,6 +29,18 @@ cargo build --release          # 产物：target/release/bili-sync-rs
 
 完整说明见 [`docs/build.md`](docs/build.md)。
 
+### Windows 交叉编译
+
+需要 Windows exe 时，在 WSL2 上用 MinGW 交叉编译（完整环境、国内镜像与踩坑见 [`docs/build.md`](docs/build.md) 的「Windows 交叉编译」一节）：
+
+```bash
+cd web && bun install --frozen-lockfile && bun run build && cd ..
+export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+cargo build --release --locked --target x86_64-pc-windows-gnu
+```
+
+产物在 `target/x86_64-pc-windows-gnu/release/bili-sync-rs.exe`；Windows 上运行需要 ffmpeg 在 PATH 中，否则启动即退出。
+
 ## 验证
 
 ```bash
